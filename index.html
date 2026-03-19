@@ -25,7 +25,6 @@
     <button class="tab active" onclick="switchTab('solver')"><i data-lucide="puzzle"></i> Solver</button>
     <button class="tab" onclick="switchTab('compare')"><i data-lucide="bar-chart-2"></i> Compare</button>
     <button class="tab" onclick="switchTab('ml')"><i data-lucide="bot"></i> ML Predict</button>
-    <button class="tab" onclick="switchTab('about')"><i data-lucide="book-open"></i> Syllabus Map</button>
   </div>
 
   <!-- ══════════════════════════════════ SOLVER PANEL ══════════════════════════════════ -->
@@ -258,98 +257,6 @@
     </div>
   </div>
 
-  <!-- ══════════════════════════════════ ABOUT PANEL ══════════════════════════════════ -->
-  <div id="panel-about" class="panel">
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">Syllabus Coverage Map</div>
-        <div class="compare-row">
-          <span class="compare-label">Unit 2 — AI Problems & Search</span>
-          <div class="syllabus-map">
-            <span class="co-badge co-1">BFS</span>
-            <span class="co-badge co-1">A*</span>
-            <span class="co-badge co-1">Heuristic</span>
-          </div>
-        </div>
-        <div class="compare-row">
-          <span class="compare-label">Unit 4 — ML Basics</span>
-          <div class="syllabus-map">
-            <span class="co-badge co-4">Data Prep</span>
-            <span class="co-badge co-4">Feature Eng.</span>
-          </div>
-        </div>
-        <div class="compare-row">
-          <span class="compare-label">Unit 5 — Supervised Learning</span>
-          <div class="syllabus-map">
-            <span class="co-badge co-4">Linear Regression</span>
-            <span class="co-badge co-4">Prediction</span>
-          </div>
-        </div>
-        <div class="compare-row">
-          <span class="compare-label">Practicals 1, 2, 5</span>
-          <div class="syllabus-map">
-            <span class="co-badge co-5">BFS/DFS</span>
-            <span class="co-badge co-5">A* Search</span>
-            <span class="co-badge co-5">Regression</span>
-          </div>
-        </div>
-        <div class="compare-row">
-          <span class="compare-label">Course Outcomes</span>
-          <div class="syllabus-map">
-            <span class="co-badge co-1">CO-1 (25%)</span>
-            <span class="co-badge co-4">CO-4 (35%)</span>
-            <span class="co-badge co-5">CO-5 (10%)</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Algorithm Complexity</div>
-        <div class="compare-row">
-          <span class="compare-label">BFS Time Complexity</span>
-          <code>O(b^d)</code>
-        </div>
-        <div class="compare-row">
-          <span class="compare-label">BFS Space Complexity</span>
-          <code>O(b^d)</code>
-        </div>
-        <div class="compare-row">
-          <span class="compare-label">A* Time Complexity</span>
-          <code>O(b^d)</code>
-        </div>
-        <div class="compare-row">
-          <span class="compare-label">A* with Admissible Heuristic</span>
-          <code>Optimal ✓</code>
-        </div>
-        <div class="compare-row">
-          <span class="compare-label">Manhattan Distance</span>
-          <code>h(n) = Σ|xi−gi|+|yi−gi|</code>
-        </div>
-        <div class="compare-row">
-          <span class="compare-label">A* f(n) formula</span>
-          <code>f(n) = g(n) + h(n)</code>
-        </div>
-      </div>
-    </div>
-
-    <div class="card about-section">
-      <h3>How BFS Works</h3>
-      <p>Breadth-First Search explores all puzzle states level by level. It uses a queue (FIFO) and guarantees finding the shortest solution path. However, it explores exponentially many states — for an 8-puzzle, this can be thousands of nodes. It doesn't use any domain knowledge.</p>
-
-      <h3>How A* Works</h3>
-      <p>A* uses a priority queue ordered by <code>f(n) = g(n) + h(n)</code> where <code>g(n)</code> is the cost so far and <code>h(n)</code> is the Manhattan distance heuristic. It intelligently focuses the search toward the goal, exploring far fewer nodes than BFS while still guaranteeing an optimal solution.</p>
-
-      <h3>The ML Component</h3>
-      <p>A Linear Regression model is trained on features extracted from puzzles: Manhattan distance sum, number of misplaced tiles. The model learns the relationship between these features and the actual number of steps required to solve. R² score measures fit quality; a score near 1.0 means near-perfect prediction.</p>
-
-      <h3>Why This Project Scores High</h3>
-      <p>It demonstrates understanding across three different areas of the syllabus — AI search (CO-1), ML application (CO-4), and algorithm evaluation (CO-5). The interactive visualizer, performance comparison charts, and ML prediction module each directly satisfy different practical requirements. The clean modular structure mirrors professional software engineering practice.</p>
-    </div>
-  </div>
-
-  <div class="footer">
-    Course 202046702 — Artificial Intelligence and Machine Learning · CVM University · Semester VI
-  </div>
 </div>
 
 <script src="src/script.js"></script>
