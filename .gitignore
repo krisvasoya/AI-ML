@@ -32,3 +32,6 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+# Vercel
+.vercel
+node_modules/
