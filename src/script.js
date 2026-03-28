@@ -695,6 +695,9 @@ window.onload = function init(){
   applyWeights(PRE_TRAINED, PRE_TRAINED.samples,
                PRE_TRAINED.mae, PRE_TRAINED.rmse, PRE_TRAINED.r2);
 
+  // ── Init Worker for Multi-Classifier Comparison
+  initMLWorker();
+
   // ── Render initial ML chart with sampled regression line ──
   const seedData = [];
   for (let md = 2; md <= 28; md += 2) {
@@ -703,3 +706,174 @@ window.onload = function init(){
   }
   renderMLChart(seedData, PRE_TRAINED.w0, PRE_TRAINED.w1, PRE_TRAINED.w2);
 };
+
+// ════════════════════════════════════════════════════════
+//  MULTI-CLASSIFIER COMPARISON (Web Worker Interface)
+// ════════════════════════════════════════════════════════
+let mlWorker = null;
+let classifierResultsMap = {};
+const classesOrdered = ['trivial', 'easy', 'medium', 'hard', 'very_hard'];
+
+function initMLWorker() {
+  if (window.Worker) {
+    mlWorker = new Worker('src/ml-worker.js');
+    mlWorker.onmessage = function(e) {
+      const msg = e.data;
+      if (msg.type === 'ready') {
+         console.log('ML Worker initialized with dataset.');
+      } else if (msg.type === 'train_done') {
+         handleTrainDone(msg.results);
+      } else if (msg.type === 'predict_done') {
+         handlePredictDone(msg.predictions);
+      }
+    };
+    // Load dataset automatically
+    if(typeof TRAINING_DATA !== 'undefined' && TRAINING_DATA.length > 0) {
+      mlWorker.postMessage({ type: 'init', data: TRAINING_DATA });
+    }
+  } else {
+    console.error("Web workers not supported.");
+  }
+}
+
+function runAllClassifiers() {
+  const btn = document.getElementById('btn-run-all');
+  btn.classList.add('loading'); btn.disabled = true;
+  document.getElementById('classifier-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1rem;color:var(--muted)">Training models... please wait (<200ms)</td></tr>';
+  
+  // Ask worker to train
+  mlWorker.postMessage({ type: 'train_all', split: 0.8 });
+}
+
+function handleTrainDone(results) {
+  const btn = document.getElementById('btn-run-all');
+  btn.classList.remove('loading'); btn.disabled = false;
+
+  classifierResultsMap = {};
+  let html = '';
+  
+  results.forEach((res, i) => {
+    classifierResultsMap[res.id] = res;
+    // Format rows
+    html += `<tr onclick="selectClassifier('${res.id}')" data-id="${res.id}">
+      <td style="font-weight:bold;color:var(--accent)">${res.label}</td>
+      <td>${(res.metrics.accuracy * 100).toFixed(1)}%</td>
+      <td>${res.metrics.precision.toFixed(3)}</td>
+      <td>${res.metrics.recall.toFixed(3)}</td>
+      <td>${res.metrics.trainTime.toFixed(1)} ms</td>
+      <td>${res.metrics.predictTime.toFixed(4)} ms</td>
+    </tr>`;
+  });
+  
+  document.getElementById('classifier-tbody').innerHTML = html;
+  
+  // Select first by default
+  if(results.length > 0) {
+    selectClassifier(results[0].id);
+    updateLiveComparison(); // trigger prediction based on current slider values
+  }
+}
+
+function selectClassifier(id) {
+  // Highlight row
+  document.querySelectorAll('#classifier-tbody tr').forEach(tr => {
+    if(tr.getAttribute('data-id') === id) tr.classList.add('selected');
+    else tr.classList.remove('selected');
+  });
+  
+  const res = classifierResultsMap[id];
+  if(!res) return;
+  
+  document.getElementById('cm-model-name').textContent = '— ' + res.label;
+  
+  // DT rules UI toggle
+  if (id === 'tree' && res.extra.rules) {
+     document.getElementById('dt-rules-container').style.display = 'block';
+     document.getElementById('dt-rules-content').textContent = res.extra.rules.join('\n');
+  } else {
+     document.getElementById('dt-rules-container').style.display = 'none';
+  }
+  
+  renderConfusionMatrix(res.metrics.confusion);
+}
+
+function renderConfusionMatrix(confusionMap) {
+  const container = document.getElementById('cm-container');
+  let html = '<div class="cm-grid">';
+  
+  // Header row
+  html += '<div class="cm-corner"></div>';
+  classesOrdered.forEach(c => {
+    // Shorten label for header
+    let shortC = c.replace('_', ' ').toUpperCase();
+    html += `<div class="cm-header" style="color:var(--accent);">${shortC}</div>`;
+  });
+  
+  // Matrix body
+  classesOrdered.forEach(trueClass => {
+    html += `<div class="cm-header" style="justify-content:flex-end;color:var(--accent);">${trueClass.replace('_', ' ').toUpperCase()}</div>`;
+    classesOrdered.forEach(predClass => {
+      let val = confusionMap[trueClass][predClass] || 0;
+      
+      let colStyle = '';
+      if (trueClass === predClass) {
+          // Diagonal = Correct (Green mapped)
+          let opacity = Math.min(1.0, 0.2 + (val / 20)); // scale approx
+          colStyle = `background:rgba(16,185,129,${opacity});`;
+          if (val > 0) colStyle += 'font-weight:bold;color:var(--accent3);text-shadow:0 0 10px rgba(16,185,129,0.5);';
+      } else {
+          // Off diagonal = Incorrect (Red mapped)
+          if (val > 0) {
+             let opacity = Math.min(0.8, 0.1 + (val / 10)); // error penalty visually
+             colStyle = `background:rgba(244,63,94,${opacity});color:#fff;`;
+          }
+      }
+      
+      html += `<div class="cm-cell" style="${colStyle}" title="True: ${trueClass}, Pred: ${predClass}">${val}</div>`;
+    });
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function updateLiveComparison() {
+  const val1 = parseFloat(document.getElementById('comp-manhattan').value);
+  const val2 = parseFloat(document.getElementById('comp-misplaced').value);
+  
+  document.getElementById('comp-manhattan-val').textContent = val1;
+  document.getElementById('comp-misplaced-val').textContent = val2;
+  
+  if (mlWorker && Object.keys(classifierResultsMap).length > 0) {
+      mlWorker.postMessage({
+          type: 'predict',
+          data: {
+              manhattan_distance: val1,
+              misplaced_tiles: val2
+          }
+      });
+  }
+}
+
+function handlePredictDone(predictions) {
+  const mapClassToColor = (lbl) => {
+      if(!lbl) return { l: '—', col: 'var(--muted)' };
+      if(lbl === 'trivial' || lbl === 'easy') return { l: lbl.toUpperCase(), col: 'var(--accent3)' };
+      if(lbl === 'medium') return { l: lbl.toUpperCase(), col: 'var(--accent)' };
+      return { l: lbl.replace('_', ' ').toUpperCase(), col: 'var(--accent2)' };
+  };
+
+  const setHtml = (id, resData) => {
+      const el = document.getElementById(id);
+      if(el && resData) {
+          const { l, col } = mapClassToColor(resData);
+          el.textContent = l;
+          el.style.color = col;
+      }
+  };
+
+  setHtml('comp-pred-knn', predictions.knn);
+  setHtml('comp-pred-tree', predictions.tree);
+  setHtml('comp-pred-svm', predictions.svm);
+  setHtml('comp-pred-lr', predictions.lr);
+}

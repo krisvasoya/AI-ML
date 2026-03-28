@@ -25,6 +25,7 @@
     <button class="tab active" onclick="switchTab('solver')"><i data-lucide="puzzle"></i> Solver</button>
     <button class="tab" onclick="switchTab('compare')"><i data-lucide="bar-chart-2"></i> Compare</button>
     <button class="tab" onclick="switchTab('ml')"><i data-lucide="bot"></i> ML Predict</button>
+    <button class="tab" onclick="switchTab('ml-compare')"><i data-lucide="git-compare"></i> Models</button>
   </div>
 
   <!-- ══════════════════════════════════ SOLVER PANEL ══════════════════════════════════ -->
@@ -259,6 +260,87 @@
 
 </div>
 
+  <!-- ══════════════════════════════════ ML COMPARE PANEL ══════════════════════════════════ -->
+  <div id="panel-ml-compare" class="panel">
+    <div class="card">
+       <div class="card-title">Multi-Classifier Comparison (700 Puzzle Dataset)</div>
+       <div class="btn-row" style="margin-bottom:1rem;">
+          <button class="btn btn-primary" id="btn-run-all" onclick="runAllClassifiers()">
+             <div class="spinner"></div>
+             <span class="btn-text" style="display:flex;align-items:center;gap:6px"><i data-lucide="play" class="lucide-sm"></i> Run All Models</span>
+          </button>
+       </div>
+       <table class="data-table" id="classifier-table" style="width:100%;text-align:left;border-collapse:collapse;font-size:14px;margin-top:1rem;">
+         <thead>
+           <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+             <th style="padding:.5rem;">Classifier</th>
+             <th style="padding:.5rem;">Accuracy</th>
+             <th style="padding:.5rem;">Precision (macro)</th>
+             <th style="padding:.5rem;">Recall (macro)</th>
+             <th style="padding:.5rem;">Train Time (ms)</th>
+             <th style="padding:.5rem;">Predict Time (1 test, ms)</th>
+           </tr>
+         </thead>
+         <tbody id="classifier-tbody">
+           <tr><td colspan="6" style="text-align:center;padding:1rem;color:var(--muted)">Run models to see comparison</td></tr>
+         </tbody>
+       </table>
+    </div>
+
+    <div class="grid-2">
+      <!-- Confusion matrix side -->
+      <div class="card">
+        <div class="card-title">Confusion Matrix <span id="cm-model-name" style="font-size:12px;color:var(--muted);font-weight:normal;float:right;margin-top:2px;"></span></div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:1rem;">Click on a row in the table above to view its matrix.</p>
+        <div class="cm-container" id="cm-container" style="overflow-x:auto;">
+           <div style="text-align:center;color:var(--muted);padding:2rem;">No matrix selected.</div>
+        </div>
+        <div id="dt-rules-container" style="display:none;margin-top:1rem;padding:1rem;background:rgba(0,0,0,0.2);border-radius:8px;">
+           <div style="font-size:11px;color:var(--accent);margin-bottom:6px;font-family:'Space Mono',monospace;">DECISION TREE TOP SPLIT RULES:</div>
+           <div id="dt-rules-content" style="font-size:12px;color:var(--text);font-family:'Space Mono',monospace;white-space:pre-wrap;"></div>
+        </div>
+      </div>
+      
+      <!-- Live prediction side -->
+      <div class="card">
+        <div class="card-title">Live 4x Prediction</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:1rem;">Adjust sliders to see all 4 models predict simultaneously using default medians for other features.</p>
+        <div class="input-group">
+          <label class="input-label">Manhattan Distance (0–40)</label>
+          <input type="range" id="comp-manhattan" min="0" max="40" value="14" class="input-field" style="padding:0;border:none;background:transparent;" oninput="updateLiveComparison()"/>
+          <span style="font-size:12px;color:var(--accent);font-family:'Space Mono',monospace" id="comp-manhattan-val">14</span>
+        </div>
+        <div class="input-group" style="margin-bottom: 1.5rem;">
+          <label class="input-label">Misplaced Tiles (0–8)</label>
+          <input type="range" id="comp-misplaced" min="0" max="8" value="5" class="input-field" style="padding:0;border:none;background:transparent;" oninput="updateLiveComparison()"/>
+          <span style="font-size:12px;color:var(--accent);font-family:'Space Mono',monospace" id="comp-misplaced-val">5</span>
+        </div>
+
+        <div class="grid-2" style="gap:1rem;">
+           <div class="ml-result-card" style="padding:1rem;text-align:center;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:8px;">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:8px">k-Nearest Neighbor</div>
+              <div id="comp-pred-knn" style="font-size:1.1rem;font-weight:bold;color:var(--text)">—</div>
+           </div>
+           <div class="ml-result-card" style="padding:1rem;text-align:center;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:8px;">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Decision Tree</div>
+              <div id="comp-pred-tree" style="font-size:1.1rem;font-weight:bold;color:var(--text)">—</div>
+           </div>
+           <div class="ml-result-card" style="padding:1rem;text-align:center;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:8px;">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:8px">SVM (Linear)</div>
+              <div id="comp-pred-svm" style="font-size:1.1rem;font-weight:bold;color:var(--text)">—</div>
+           </div>
+           <div class="ml-result-card" style="padding:1rem;text-align:center;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:8px;">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Logistic Reg</div>
+              <div id="comp-pred-lr" style="font-size:1.1rem;font-weight:bold;color:var(--text)">—</div>
+           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="src/data.js"></script>
 <script src="src/script.js"></script>
 </body>
 </html>
