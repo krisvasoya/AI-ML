@@ -231,15 +231,29 @@ async function runSolver() {
   animProgress(80,100,400);
   await sleep(400);
 
-  // Update stats
+  // Update stats with smooth counting animation
   const mDist = manhattan(initialState, goalState);
   const mTiles = misplacedTiles(initialState, goalState);
-  document.getElementById('stat-bfs-steps').innerHTML = bfsResult ? (bfsResult.fail?'<i data-lucide="x-circle" class="lucide-sm"></i>':bfsResult.steps) : '—';
-  document.getElementById('stat-astar-steps').innerHTML = astarResult ? (astarResult.fail?'<i data-lucide="x-circle" class="lucide-sm"></i>':astarResult.steps) : '—';
-  document.getElementById('stat-nodes').textContent = (bfsResult||astarResult) ?
-    ((bfsResult?bfsResult.nodes:0)+(astarResult?astarResult.nodes:0)) : '—';
-  document.getElementById('stat-bfs-time').textContent = bfsResult ? bfsResult.time.toFixed(1) : '—';
-  document.getElementById('stat-astar-time').textContent = astarResult ? astarResult.time.toFixed(1) : '—';
+  
+  if (bfsResult && !bfsResult.fail) {
+    animateValue(document.getElementById('stat-bfs-steps'), 0, bfsResult.steps, 600);
+    animateValue(document.getElementById('stat-bfs-time'), 0, bfsResult.time, 600, true);
+  } else {
+    document.getElementById('stat-bfs-steps').innerHTML = bfsResult ? '<i data-lucide="x-circle" class="lucide-sm"></i>' : '—';
+    document.getElementById('stat-bfs-time').innerHTML = '—';
+  }
+  
+  if (astarResult && !astarResult.fail) {
+    animateValue(document.getElementById('stat-astar-steps'), 0, astarResult.steps, 600);
+    animateValue(document.getElementById('stat-astar-time'), 0, astarResult.time, 600, true);
+  } else {
+    document.getElementById('stat-astar-steps').innerHTML = astarResult ? '<i data-lucide="x-circle" class="lucide-sm"></i>' : '—';
+    document.getElementById('stat-astar-time').innerHTML = '—';
+  }
+
+  const exploredNodes = ((bfsResult ? bfsResult.nodes : 0) + (astarResult ? astarResult.nodes : 0));
+  if (exploredNodes > 0) animateValue(document.getElementById('stat-nodes'), 0, exploredNodes, 800);
+  else document.getElementById('stat-nodes').textContent = '—';
 
   const diff = mDist<8?'Easy':mDist<16?'Medium':'Hard';
   document.getElementById('stat-difficulty').textContent = diff;
@@ -468,23 +482,13 @@ function renderBatchChart(){
   });
 }
 
-// ════════════════════════════════════════════════════════
-//  ML — PRE-TRAINED WEIGHTS (from 5000-sample dataset)
-//  w0=0.0777, w1=0.8720, w2=0.3649
-//  MAE=1.48 steps  RMSE=1.94 steps  (Gradient Descent, 3000 epochs)
-// ════════════════════════════════════════════════════════
 const PRE_TRAINED = { w0: 0.0777, w1: 0.8720, w2: 0.3649,
-                      mae: 1.48, rmse: 1.94, r2: 0.921, samples: 5000 };
+                      mae: 1.48, rmse: 1.94, r2: 0.921, samples: 700 };
 
 function applyWeights(weights, samples, mae, rmse, r2) {
   mlModel = { w0: weights.w0, w1: weights.w1, w2: weights.w2 };
-  const pct = r2 * 100;
-  document.getElementById('ml-r2').textContent     = r2.toFixed(3) + ' (' + pct.toFixed(1) + '%)';
-  document.getElementById('ml-mae').textContent     = mae.toFixed(2) + ' steps';
-  document.getElementById('ml-rmse').textContent    = rmse.toFixed(2) + ' steps';
-  document.getElementById('ml-samples').textContent = samples.toLocaleString() + ' puzzles';
-  document.getElementById('ml-weights').textContent =
-    'w0=' + weights.w0.toFixed(4) + '  w1=' + weights.w1.toFixed(4) + '  w2=' + weights.w2.toFixed(4);
+  // Static stats are now hardcoded in the HTML for Logistic Regression
+  // We just initialize the model for the interactive difficulty predictor.
   updatePrediction();
 }
 
@@ -559,13 +563,23 @@ function updatePrediction() {
   document.getElementById('feat-manhattan-val').textContent=x1;
   document.getElementById('feat-misplaced-val').textContent=x2;
   if(!mlModel){ return; }
-  const pred=Math.max(0,Math.round(mlModel.w0+mlModel.w1*x1+mlModel.w2*x2));
-  document.getElementById('ml-pred').textContent=pred;
-  const pct=Math.min(100,(pred/60)*100);
+  
+  // Predict approx steps using old linear formulation for visual effect,
+  // then map that to the formal difficulty classes (trivial, easy, medium, hard, very_hard)
+  const pred_steps=Math.max(0,Math.round(mlModel.w0+mlModel.w1*x1+mlModel.w2*x2));
+  
+  let label = "Trivial";
+  let col = "var(--accent3)";
+  let pct = 10;
+  
+  if(pred_steps >= 20) { label = "Very Hard"; col = "var(--accent2)"; pct = 95; }
+  else if(pred_steps >= 15) { label = "Hard"; col = "var(--accent2)"; pct = 75; }
+  else if(pred_steps >= 8) { label = "Medium"; col = "var(--accent)"; pct = 50; }
+  else if(pred_steps >= 4) { label = "Easy"; col = "var(--accent3)"; pct = 25; }
+
+  document.getElementById('ml-pred').textContent=label;
   document.getElementById('diff-bar').style.width=pct+'%';
-  const diff=pred<10?'Easy':pred<25?'Medium':pred<40?'Hard':'Very Hard';
-  const col=pred<10?'var(--accent3)':pred<25?'var(--accent)':'var(--accent2)';
-  document.getElementById('diff-label').textContent=diff+' Puzzle';
+  document.getElementById('diff-label').textContent=label+' Puzzle';
   document.getElementById('diff-label').style.color=col;
 }
 
@@ -645,6 +659,25 @@ function animProgress(from,to,dur){
     if(pct<1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
+}
+
+function animateValue(elem, start, end, duration, formatFloat=false) {
+  if(!elem) return;
+  if(isNaN(end)) { elem.innerHTML = end; return; }
+  let startTimestamp = null;
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    const easeProgress = progress * (2 - progress); // easeOutQuad
+    const curr = start + easeProgress * (end - start);
+    elem.textContent = formatFloat ? curr.toFixed(1) : Math.floor(curr);
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    } else {
+      elem.textContent = formatFloat ? end.toFixed(1) : end;
+    }
+  };
+  window.requestAnimationFrame(step);
 }
 
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }

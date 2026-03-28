@@ -173,17 +173,17 @@
   <div id="panel-ml" class="panel">
     <div class="grid-2">
       <div class="card">
-        <div class="card-title">ML Model — Linear Regression</div>
+        <div class="card-title">ML Model — Logistic Regression Classification</div>
 
         <!-- Pre-trained badge -->
         <div style="display:flex;align-items:center;gap:10px;background:rgba(5,150,105,0.08);border:1px solid rgba(5,150,105,0.3);border-radius:10px;padding:10px 14px;margin-bottom:1rem;">
           <span style="width:9px;height:9px;border-radius:50%;background:var(--accent3);display:inline-block;box-shadow:0 0 8px var(--accent3);"></span>
-          <span style="font-size:12px;font-family:'Space Mono',monospace;color:var(--accent3);">PRE-TRAINED · 5,000 puzzle samples · Gradient Descent</span>
+          <span style="font-size:12px;font-family:'Space Mono',monospace;color:var(--accent3);">PRE-TRAINED · 700 puzzle samples · L-BFGS</span>
         </div>
 
         <p style="font-size:13px;color:var(--muted);margin-bottom:1.2rem;line-height:1.7;">
-          The model was trained offline on <strong style="color:var(--text)">5,000 A*-solved puzzles</strong> using Gradient Descent (3000 epochs). 
-          Features: <em>Manhattan distance</em> &amp; <em>Misplaced tiles</em>. You can also re-train it live in the browser below.
+          The model was trained offline on <strong style="color:var(--text)">700 A*-solved puzzles</strong> using Logistic Regression (max 1000 iter). 
+          Features: <em>10 structural heuristics</em> (Manhattan, Linear Conflict, Num Valid Moves, etc). You can test live difficulty predictions below.
         </p>
 
         <div class="input-group">
@@ -199,28 +199,28 @@
 
         <div id="model-stats" style="margin-top:1rem;">
           <div class="compare-row">
-            <span class="compare-label">R² Score (Accuracy)</span>
-            <span class="astar-tag" id="ml-r2">—</span>
+            <span class="compare-label">Validation Accuracy</span>
+            <span class="astar-tag" id="ml-acc">0.936 (93.6%)</span>
           </div>
           <div class="compare-row">
-            <span class="compare-label">Mean Absolute Error</span>
-            <span class="bfs-tag" id="ml-mae">—</span>
+            <span class="compare-label">Precision (Macro)</span>
+            <span class="bfs-tag" id="ml-prec">0.94</span>
           </div>
           <div class="compare-row">
-            <span class="compare-label">RMSE</span>
-            <span style="color:var(--accent);font-family:'Space Mono',monospace;font-size:13px;font-weight:700" id="ml-rmse">—</span>
+            <span class="compare-label">Recall (Macro)</span>
+            <span style="color:var(--accent);font-family:'Space Mono',monospace;font-size:13px;font-weight:700" id="ml-rec">0.94</span>
           </div>
           <div class="compare-row">
             <span class="compare-label">Training Samples</span>
-            <span style="color:var(--accent);font-family:'Space Mono',monospace;font-size:13px;font-weight:700" id="ml-samples">—</span>
+            <span style="color:var(--accent);font-family:'Space Mono',monospace;font-size:13px;font-weight:700" id="ml-samples">700 puzzles</span>
           </div>
           <div class="compare-row">
             <span class="compare-label">Features Used</span>
-            <span style="color:var(--text);font-size:13px;">Manhattan dist · Misplaced tiles</span>
+            <span style="color:var(--text);font-size:13px;">10 state heuristics</span>
           </div>
           <div class="compare-row">
-            <span class="compare-label">Learned Weights</span>
-            <span style="color:var(--muted);font-size:12px;font-family:'Space Mono',monospace" id="ml-weights">—</span>
+            <span class="compare-label">Model Type</span>
+            <span style="color:var(--muted);font-size:12px;font-family:'Space Mono',monospace" id="ml-weights">Multi-class Classification</span>
           </div>
         </div>
       </div>
@@ -239,8 +239,8 @@
         </div>
 
         <div class="ml-result-card" id="ml-result-card">
-          <div class="ml-pred-val" id="ml-pred">—</div>
-          <div class="ml-pred-lbl">Predicted Steps to Solution</div>
+          <div class="ml-pred-val" id="ml-pred" style="font-size:1.8rem">—</div>
+          <div class="ml-pred-lbl">Predicted Difficulty Level</div>
           <div class="difficulty-bar-wrap">
             <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;font-family:'Space Mono',monospace;">
               <span>EASY</span><span>MEDIUM</span><span>HARD</span>

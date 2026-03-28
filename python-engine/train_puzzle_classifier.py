@@ -2,17 +2,21 @@ import pandas as pd
 import numpy as np
 import os
 import pickle
+import warnings
+warnings.filterwarnings('ignore')
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 
-# Paths
-DATA_PATH = "python-engine/data/puzzle_ml_dataset_700.csv"
-MODEL_DIR = "python-engine/models/"
-RESULTS_DIR = "python-engine/results/"
+# Paths (adjusted to be relative to engine directory)
+DATA_PATH = "data/puzzle_ml_dataset_700.csv"
+MODEL_DIR = "models/"
+RESULTS_DIR = "results/"
 
 # Ensure directories exist
 os.makedirs(MODEL_DIR, exist_ok=True)
@@ -27,7 +31,6 @@ def train_model():
     df = pd.read_csv(DATA_PATH)
 
     # Features and Target
-    # We choose features that describe the state, not the solver output
     features = [
         'manhattan_distance', 'misplaced_tiles', 'linear_conflict', 
         'corner_misplaced', 'blank_row', 'blank_col', 'blank_in_center', 
@@ -44,9 +47,6 @@ def train_model():
     # Encode target labels
     label_encoder = LabelEncoder()
     y_encoded = label_encoder.fit_transform(y)
-    
-    # Define difficulty order for better visualization if needed
-    # trivial, easy, medium, hard, very_hard
     print(f"Classes: {label_encoder.classes_}")
 
     # Split data
@@ -57,14 +57,32 @@ def train_model():
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    print("--- Training RandomForestClassifier ---")
-    model = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=10)
-    model.fit(X_train_scaled, y_train)
+    print("--- Evaluating Multiple Models ---")
+    models = {
+        "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
+        "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42, max_depth=10),
+        "Gradient Boosting": GradientBoostingClassifier(random_state=42),
+        "Support Vector Machine (SVM)": SVC(probability=True, random_state=42)
+    }
 
-    print("--- Evaluating Model ---")
-    y_pred = model.predict(X_test_scaled)
-    accuracy = accuracy_score(y_test, y_pred)
-    print(f"Accuracy: {accuracy:.4f}")
+    best_model = None
+    best_accuracy = 0
+    best_name = ""
+
+    for name, model in models.items():
+        model.fit(X_train_scaled, y_train)
+        y_pred = model.predict(X_test_scaled)
+        acc = accuracy_score(y_test, y_pred)
+        print(f"{name}: Accuracy = {acc:.4f}")
+        
+        if acc > best_accuracy:
+            best_accuracy = acc
+            best_name = name
+            best_model = model
+            
+    print(f"\n--- Best Model Selection: {best_name} ---")
+    y_pred = best_model.predict(X_test_scaled)
+    print(f"Accuracy: {best_accuracy:.4f}")
     print("\nClassification Report:\n", classification_report(y_test, y_pred, target_names=label_encoder.classes_))
 
     # Confusion Matrix Visualization
@@ -73,35 +91,25 @@ def train_model():
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                 xticklabels=label_encoder.classes_, 
                 yticklabels=label_encoder.classes_)
-    plt.title('Confusion Matrix - Puzzle Difficulty Classifier')
+    plt.title(f'Confusion Matrix - {best_name}')
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
     plt.savefig(os.path.join(RESULTS_DIR, 'confusion_matrix.png'))
     print(f"Confusion matrix saved to {RESULTS_DIR}confusion_matrix.png")
 
-    # Feature Importance Visualization
-    importances = model.feature_importances_
-    indices = np.argsort(importances)[::-1]
-    plt.figure(figsize=(12, 6))
-    plt.title("Feature Importances")
-    plt.bar(range(X.shape[1]), importances[indices], align="center")
-    plt.xticks(range(X.shape[1]), [features[i] for i in indices], rotation=45)
-    plt.tight_layout()
-    plt.savefig(os.path.join(RESULTS_DIR, 'feature_importances.png'))
-    print(f"Feature importance plot saved to {RESULTS_DIR}feature_importances.png")
-
     # Final training on all data
     print("--- Saving Model Artifacts ---")
     full_scaler = StandardScaler()
     X_scaled = full_scaler.fit_transform(X)
-    model.fit(X_scaled, y_encoded)
+    best_model.fit(X_scaled, y_encoded)
 
     # Save artifacts
     artifacts = {
-        'model': model,
+        'model': best_model,
         'scaler': full_scaler,
         'label_encoder': label_encoder,
-        'feature_names': features
+        'feature_names': features,
+        'model_name': best_name
     }
     
     with open(os.path.join(MODEL_DIR, 'difficulty_model.pkl'), 'wb') as f:
